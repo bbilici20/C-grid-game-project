@@ -1,0 +1,553 @@
+// Write your full name: Beril Bilici, write your KU ID: 75794
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <time.h>
+#include <string.h>
+
+
+//There are five parts to modify to change the input text: the read file part, output 0 part, visual output 0 part, for loop file writing part and visual writing part (in order)
+
+typedef struct Impostor {
+  bool is_alive;
+  int x, y;
+} Impostor;
+
+typedef struct Astronaut {
+  bool is_alive;
+  int x, y;
+} Astronaut;
+
+/**
+void move_astronauts(struct Astronaut ** astronauts, int astro_count, int N){
+	for (int i=0; i<astro_count; i++){
+
+		if(&astronauts[i]->is_alive == 1){
+			if(astronauts[i]->y < N){astronauts[i]->y += 1;}
+			else if(astronauts[i]->y > N){astronauts[i]->y -= 1;}
+
+			else{
+			    if(astronauts[i]->x < N){astronauts[i]->x += 1;}
+			   else if(astronauts[i]->x > N){astronauts[i]->x -= 1;}
+			}
+		}
+	}	
+}
+**/
+
+
+//if the impostor doesn't see a neighbor, it kills the astronaut isn the same cell
+
+bool imp_kill_target(struct Impostor * imp, int target_idx, struct Astronaut ** astronauts, int astro_count){
+	int imp_x = imp->x;
+	int imp_y = imp->y;
+	for(int i=0; i<astro_count; i++){
+		bool alive = astronauts[i]->is_alive;
+		int ast_x = astronauts[i]->x;
+		int ast_y = astronauts[i]->y;
+ 
+		if((ast_x == imp_x)&&(ast_y == imp_y)&&alive&&(target_idx != i))
+			{return 0;}
+		else if((ast_x == imp_x+1)&&(ast_y == imp_y)&&alive)
+                        {return 0;}
+		else if((ast_x == imp_x-1)&&(ast_y == imp_y)&&alive)
+                        {return 0;}
+		else if((ast_x == imp_x)&&(ast_y == imp_y+1)&&alive)
+                        {return 0;}
+		else if((ast_x == imp_x)&&(ast_y == imp_y-1)&&alive)
+                        {return 0;}
+		else{}
+	}
+
+	return 1;
+
+}
+
+//if there is an astroanut in a neighbor cell that the impostor can't see, there is a witness
+
+bool witness(struct Impostor * imp, struct Astronaut ** astronauts, int astro_count){
+	int imp_x = imp->x;
+	int imp_y = imp->y;
+	 
+	for(int i=0; i<astro_count; i++){
+		bool alive = astronauts[i]->is_alive;
+		int ast_x = astronauts[i]->x;
+		int ast_y = astronauts[i]->y;
+
+                if((ast_x == (imp_x+1))&&(ast_y == (imp_y+1))&&alive)
+                        {return 1;}
+                else if((ast_x == imp_x+1)&&(ast_y == imp_y-1)&&alive)
+                        {return 1;}
+                else if((ast_x == imp_x-1)&&(ast_y == imp_y+1)&&alive)
+                        {return 1;}
+                else if((ast_x == imp_x-1)&&(ast_y == imp_y-1)&&alive)
+                        {return 1;}
+                else{}
+	}
+
+	return 0;
+}
+
+int game_status(struct Astronaut ** astronauts, int alive_ast, int alive_imp, int N, int astronaut_count){
+	
+	int a = 1;		//if all of the alive astronauts are in the emergency room
+        for(int i=0; i<astronaut_count; i++){
+                if(astronauts[i]->is_alive){
+                        if (!((astronauts[i]->x == N)&&(astronauts[i]->y == N))){
+                                a=0;
+                        }
+                }
+        }
+
+	if((alive_ast == 0)&&(alive_imp>0)){  //if all astronauts are dead and there are impostors, defeat
+		return 0; }
+
+	else if((alive_ast>0)&&(alive_imp == 0)){  //if all of the impostors are dead, victory
+		return 1;
+	}
+	else if(a){   //if all alive astronauts reached the emergency room, victory
+		return a;
+	}
+	else{        //else continue
+		return 2;
+	}
+	
+}
+
+int main(int argc, char **argv)
+{
+	
+    int N, iteration;
+    int dead_astro_count = 0;
+    int dead_imp_count = 0;
+    int astro_count = 0; 
+    int imp_count = 0;
+    
+    Astronaut ** astronauts = malloc(sizeof(Astronaut));
+    Impostor ** impostors = malloc(sizeof(Impostor));
+
+    FILE * fp;
+    char * line = NULL;
+    size_t len = 0;
+    size_t read;
+
+    fp = fopen("input_text_1.txt", "r");
+    if (fp == NULL)
+        exit(EXIT_FAILURE);
+
+    //read file line by line and assign the values
+
+    int i = 1;
+    while ((read = getline(&line, &len, fp)) != -1) {
+        
+        printf("line: %s\n", line);
+
+	if(i==1){	
+		astro_count = atoi(&line[0]);
+		printf("astro count = %d\n",astro_count);
+	}
+	if(i==2){
+		imp_count = atoi(&line[0]);
+		printf("imp count = %d\n",imp_count);
+	}
+	if(i==3){
+		N = atoi(&line[0]);
+		printf("dimension = %d\n",N);
+	}
+	if(i==4){
+		iteration = atoi(&line[0]);
+		printf("steps = %d\n",iteration);
+	}
+	if(i==5){
+		const char *p="& ",*q=",";
+        	char *a,*b,*c,*d;
+
+		//create memory for astronauts array
+
+		astronauts = realloc(astronauts, (sizeof(Astronaut)*astro_count));
+
+		int ast_counter = 0;
+        	for( a=strtok_r(line,p,&c) ; a!=NULL ; a=strtok_r(NULL,p,&c) ) {
+                	printf("%s\n",a);
+
+			//create memory for astronaut struct
+			
+			Astronaut * ast = malloc(sizeof(Astronaut));
+			ast->is_alive = 1;
+
+			int count = 1;
+                	for( b=strtok_r(a,q,&d) ; b!=NULL ; b=strtok_r(NULL,q,&d) ){
+                        	 if(count==1){
+                                        int ast_x = atoi(b);
+                                        printf("ast_x is %d\n",ast_x);
+        				ast->x = ast_x;                        
+	
+				}
+                                 if(count==2){
+                                        int ast_y = atoi(b);
+                                        printf("ast_y is %d\n",ast_y);
+					ast->y = ast_y; 
+                                }
+				 count++;
+
+        		}
+		astronauts[ast_counter] = ast;	
+		ast_counter++;	
+		}
+	}
+	if(i==6){
+		const char *p="& ",*q=",";
+                char *a,*b,*c,*d;
+
+		//create memory for impostors array
+
+		impostors = realloc(impostors, (sizeof(Impostor)*imp_count));
+		
+		int imp_counter = 0;
+                for( a=strtok_r(line,p,&c) ; a!=NULL ; a=strtok_r(NULL,p,&c) ) {
+			
+			Impostor * imp = malloc(sizeof(Impostor));   //create memory for struct
+			imp->is_alive = 1;
+			
+			int count = 1;
+                        for( b=strtok_r(a,q,&d) ; b!=NULL ; b=strtok_r(NULL,q,&d) ){
+                                if(count==1){
+					int imp_x = atoi(b);
+					printf("imp_x is %d\n",imp_x);
+					imp->x = imp_x;
+					
+				}
+				 if(count==2){
+                                        int imp_y = atoi(b);
+                                        printf("imp_y is %d\n",imp_y);
+					imp->y = imp_y;
+					
+ 				 }
+				 count++;
+                        }
+		impostors[imp_counter] = imp;
+		imp_counter++;
+        	}
+
+	}
+
+ 	i++;
+    }
+
+    fclose(fp);
+    if (line)
+        free(line);
+
+
+	//write file 0, the stats before the game starts
+
+    FILE *fptr;
+
+    fptr = fopen("input_text_1_out_0.txt","w");
+
+    if(fptr == NULL)
+    {
+      printf("Error!");
+      exit(1);
+    }
+
+        //print dead and alive astro and imp counts
+
+    fprintf(fptr,"%d\n", dead_imp_count);
+    int alive_imps = imp_count - dead_imp_count;
+    fprintf(fptr,"%d\n", alive_imps);
+
+    fprintf(fptr,"%d\n", dead_astro_count);
+    int alive_astros = astro_count - dead_astro_count;
+    fprintf(fptr,"%d\n", alive_astros);
+
+        //print game status
+
+    int status = game_status(astronauts, alive_astros, alive_imps, N, astro_count);
+    if(status == 0){ fprintf(fptr,"Defeat\n");}
+    if(status == 1){ fprintf(fptr,"Victory\n");}
+    if(status == 2){ fprintf(fptr,"Continue\n");}
+
+     //print astronaut location and alive status
+
+    for(int i=0; i<astro_count; i++){
+         fprintf(fptr,"%d, %d,",astronauts[i]->x,astronauts[i]->y);
+         if(astronauts[i]->is_alive){ fprintf(fptr," Alive"); }
+            else{ fprintf(fptr," Dead"); }
+         if(i+1 != astro_count){ fprintf(fptr," & "); }
+    }
+    fprintf(fptr,"\n");
+
+        //print impostor locations and alive status
+
+    for(int i=0; i<imp_count; i++){
+         fprintf(fptr,"%d, %d,",impostors[i]->x,impostors[i]->y);
+         if(impostors[i]->is_alive){ fprintf(fptr," Alive"); }
+            else{ fprintf(fptr," Dead"); }
+         if(i+1 != imp_count){ fprintf(fptr," & "); }
+    }
+
+    fclose(fptr);
+
+
+
+	 //write visual file for initial state
+    char name2[100] = "input_text_1_out_0_vis.txt";
+    
+    int ndim = 2*N+1;
+
+    FILE *fptr2;
+
+    fptr2 = fopen(&name2,"w");
+
+    printf("THE NAME %s\n",name2);
+
+    if(fptr2 == NULL)
+    {
+      printf("Error!");
+      exit(1);
+    }
+
+    //for every x and y on the table, if there is an alive astronaut or alive impostor, print them. If there is not, print O
+
+    for(int y=0; y<ndim; y++){
+
+        for(int x=0; x<ndim; x++){
+
+                bool exi = 0;
+                char myString[100] = "|";
+                //if emergency room, print ER and print the number of astronaut that reached to the ER
+
+                if((x==N)&&(y==N)){
+                        int here = 0;
+                        for(int i=0; i<astro_count; i++){
+                                if((astronauts[i]->x==x)&&(astronauts[i]->y)&&(astronauts[i]->is_alive)){
+                                        here++;}
+                        }
+                        char numstr[10];
+                        sprintf(numstr, "%d", here);
+                        strcat(&myString[0], "ER:");strcat(&myString[0],numstr);fprintf(fptr2,"%-10s",myString);continue;
+                }
+                for(int i=0; i<astro_count; i++){
+                        if((astronauts[i]->x == x)&&(astronauts[i]->y == y)&&(astronauts[i]->is_alive)){
+                                strcat(&myString[0],"A,");
+                                exi = 1;}
+                }
+                for(int i=0; i<imp_count; i++){
+                        if((impostors[i]->x == x)&&(impostors[i]->y == y)&&(impostors[i]->is_alive)){
+			 strcat(&myString[0],"I,");
+                                exi = 1;}
+                }
+                if(!exi){strcat(&myString[0],"O");}
+                fprintf(fptr2,"%-10s",myString);
+        }
+        fprintf(fptr2,"\n\n");
+
+    }
+     fclose(fptr2);
+
+
+
+
+    //starting the game
+    for(int a=0; a<iteration; a++){
+	//move_astronauts(&astronauts, astro_count, N);
+	
+	//move the astronauts
+
+	for (int i=0; i<astro_count; i++){
+
+                if(astronauts[i]->is_alive == 1){
+                        if(astronauts[i]->y < N){astronauts[i]->y += 1;}
+                        else if(astronauts[i]->y > N){astronauts[i]->y -= 1;}
+
+                        else{
+                            if(astronauts[i]->x < N){astronauts[i]->x += 1;}
+                           else if(astronauts[i]->x > N){astronauts[i]->x -= 1;}
+                        }
+                }
+        }
+
+	//check if any astronaut and impostor are in the same location
+
+
+	for(int b=0; b<imp_count; b++){
+
+	    if(impostors[b]->is_alive){  //dead impostors can't kill
+		
+		int imp_x = impostors[b]->x;
+		int imp_y = impostors[b]->y;
+
+		for(int c=0; c<astro_count; c++){
+			int ast_x = astronauts[c]->x;
+			int ast_y = astronauts[c]->y;
+			
+			//if there is an astronaut at the same slot and it is alive, the impostor kills it
+
+			if((ast_x == imp_x)&&(ast_y == imp_y)&&(astronauts[c]->is_alive)){
+				
+				//check if the impostor sees another astronaut in neighbor
+				if(imp_kill_target(impostors[b], c, astronauts, astro_count)){
+					astronauts[c]->is_alive=0; //the astroanut is killed
+					dead_astro_count++;
+
+					//if there is an astronaut in certain place to witness, that astronaut kills the impostor
+					
+					if(witness(impostors[b], astronauts, astro_count)){
+						impostors[b]->is_alive=0; //the impostor is killed
+						dead_imp_count++;
+					}
+				}
+
+			}
+		}
+	   }
+
+	}
+     
+    
+    //write file here
+
+	//prepare file name for every step
+
+    char name[100] = "input_text_1_out_";
+    char str[10];
+    char str2[20] = ".txt";
+    sprintf(str, "%d", a+1);
+    strcat(&name, &str); 
+    strcat(&name, &str2);
+    
+    FILE *fptr;
+ 
+    fptr = fopen(&name,"w");
+  
+    printf("THE NAME %s\n",name);    
+
+    if(fptr == NULL)
+    {
+      printf("Error!");   
+      exit(1);             
+    }
+
+	//print dead and alive astro and imp counts
+
+    fprintf(fptr,"%d\n", dead_imp_count);
+    int alive_imps = imp_count - dead_imp_count;
+    fprintf(fptr,"%d\n", alive_imps);
+    
+    fprintf(fptr,"%d\n", dead_astro_count);
+    int alive_astros = astro_count - dead_astro_count;
+    fprintf(fptr,"%d\n", alive_astros);
+
+	//print game status
+
+    int status = game_status(astronauts, alive_astros, alive_imps, N, astro_count);
+    if(status == 0){ fprintf(fptr,"Defeat\n");}
+    if(status == 1){ fprintf(fptr,"Victory\n");}
+    if(status == 2){ fprintf(fptr,"Continue\n");}
+
+	//print astronaut location and alive status
+
+    for(int i=0; i<astro_count; i++){
+	 fprintf(fptr,"%d, %d,",astronauts[i]->x,astronauts[i]->y);
+         if(astronauts[i]->is_alive){ fprintf(fptr," Alive"); }
+	    else{ fprintf(fptr," Dead"); }
+	 if(i+1 != astro_count){ fprintf(fptr," & "); }
+    }
+    fprintf(fptr,"\n");
+
+	//print impostor locations and alive status
+
+    for(int i=0; i<imp_count; i++){
+         fprintf(fptr,"%d, %d,",impostors[i]->x,impostors[i]->y);
+         if(impostors[i]->is_alive){ fprintf(fptr," Alive"); }
+            else{ fprintf(fptr," Dead"); }
+         if(i+1 != imp_count){ fprintf(fptr," & "); }
+    }
+	
+    fclose(fptr);   
+
+   //write visual file
+    char name2[100] = "input_text_1_out_";
+    char string[10];
+    char string2[20] = "_vis.txt";
+    sprintf(string, "%d", a+1);
+    strcat(&name2, &string);
+    strcat(&name2, &string2);
+    int ndim = 2*N+1;
+
+    FILE *fptr2;
+
+    fptr2 = fopen(&name2,"w");
+
+    printf("THE NAME %s\n",name2);
+
+    if(fptr2 == NULL)
+    {
+      printf("Error!");
+      exit(1);
+    }
+
+    //for every x and y on the table, if there is an alive astronaut or alive impostor, print them. If there is not, print O
+
+    for(int y=0; y<ndim; y++){
+	
+	for(int x=0; x<ndim; x++){
+		
+		bool exi = 0;
+		char myString[100] = "|";
+		//if emergency room, print ER and print the number of astronaut that reached to the ER
+
+		if((x==N)&&(y==N)){
+			int here = 0;
+			for(int i=0; i<astro_count; i++){
+				if((astronauts[i]->x==x)&&(astronauts[i]->y)&&(astronauts[i]->is_alive)){
+					here++;}
+			}
+			char numstr[10];
+    			sprintf(numstr, "%d", here);			
+			strcat(&myString[0], "ER:");strcat(&myString[0],numstr);fprintf(fptr2,"%-10s",myString);continue;
+		}
+		for(int i=0; i<astro_count; i++){
+			if((astronauts[i]->x == x)&&(astronauts[i]->y == y)&&(astronauts[i]->is_alive)){
+				strcat(&myString[0],"A,");
+				exi = 1;}
+		}
+		for(int i=0; i<imp_count; i++){
+                        if((impostors[i]->x == x)&&(impostors[i]->y == y)&&(impostors[i]->is_alive)){
+                                strcat(&myString[0],"I,");
+                                exi = 1;}
+                }
+		if(!exi){strcat(&myString[0],"O");}
+		fprintf(fptr2,"%-10s",myString);
+        }
+	fprintf(fptr2,"\n\n");
+	
+    }
+     fclose(fptr2);
+
+
+
+
+  
+
+
+
+
+
+	//if defeat or victory, end the game
+
+    if((status == 0)||(status == 1)){
+	break;
+    }
+
+    }
+	//free to prevent memory leak
+	free(astronauts);
+	free(impostors);
+
+	return 0;
+}
+
+
+ 
